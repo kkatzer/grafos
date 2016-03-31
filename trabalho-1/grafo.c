@@ -1,5 +1,6 @@
 #include <graphviz/cgraph.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "grafo.h"
 
 struct grafo {
@@ -33,7 +34,7 @@ unsigned int n_arestas(grafo g){
 
 struct vertice {
   Agnode_t *vertice;
-}
+};
 
 char *nome_vertice(vertice v){
   return agnameof(v->vertice);
@@ -47,26 +48,25 @@ grafo le_grafo(FILE *input){
 }
 
 int destroi_grafo(void *g) {
+	grafo *f = (void *)g;
   int ok = 1;
-  agclose(g->grafo);
-  destroi_lista(g->vertices, agclose);
-  destroi_lista(g->arestas, agclose);
-  ok &= g->grafo & g->vertices & g->arestas;
+  ok &= agclose((*f)->grafo);
+  ok &= destroi_lista((*f)->vertices, (int (*)(void *))agclose);
+  ok &= destroi_lista((*f)->arestas, (int (*)(void *))agclose);
   if (ok == 1){
     free(g);
   }
-  ok &= g;
+  if (g == NULL){
+  	ok &= 1;
+  }
   return ok;
 }
 
 grafo escreve_grafo(FILE *output, grafo g){
-  Agraph_t *h;
-  h = agwrite(g->grafo, output);
-
-  if (h == NULL) {
-    return -1;
+  if (agwrite(g->grafo, output)){
+  	return g;
   } else {
-    return 0;
+  	return NULL;
   }
 }
 
@@ -98,11 +98,11 @@ lista vizinhanca(vertice v, int direcao, grafo g){
 
 unsigned int grau(vertice v, int direcao, grafo g){
   if (direcao == 0){
-    return agdegree(g->grafo,v->vertice,TRUE,TRUE);
+    return (unsigned int)agdegree(g->grafo,v->vertice,TRUE,TRUE);
   } else if (direcao < 0) {
-    return agdegree(g->grafo,v->vertice,TRUE,FALSE);
+    return (unsigned int)agdegree(g->grafo,v->vertice,TRUE,FALSE);
   } else {
-    return agdegree(g->grafo,v->vertice,FALSE,TRUE);
+    return (unsigned int)agdegree(g->grafo,v->vertice,FALSE,TRUE);
   }
 }
 
@@ -110,9 +110,12 @@ int clique(lista l, grafo g){
   int is = 1;
   no no1 = primeiro_no(l);
   no no2 = proximo_no(no1);
+  vertice *v1, *v2;
   while(no1 != NULL){
     while(no2 != NULL){
-      if (agedge(g->grafo, conteudo(no1)->vertice, conteudo(no2)->vertice, NULL, FALSE) == NULL){
+    	v1 = (void *)conteudo(no1);
+    	v2 = (void *)conteudo(no2);
+      if (agedge(g->grafo, (*v1)->vertice, (*v2)->vertice, NULL, FALSE) == NULL){
         is = 0;
       }
       no2 = proximo_no(no2);
