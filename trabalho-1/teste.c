@@ -13,9 +13,9 @@ int main(void) {
 
   printf("nome: %s\n", nome_grafo(g));
   printf("%sdirecionado\n", direcionado(g) ? "" : "não ");
-  printf("%sponderado\n", ponderado(g) ? "" : "não ");
+  // printf("%sponderado\n", ponderado(g) ? "" : "não ");
   printf("%d vértices\n", n_vertices(g));
-  // printf("%d arestas\n", n_arestas(g));
+  printf("%d arestas\n", n_arestas(g));
 
   escreve_grafo(stdout, g);
 

@@ -6,9 +6,6 @@
 struct grafo {
   int ponderado;
 
-  lista vertices;
-  lista arestas;
-
   Agraph_t *grafo;
 };
 
@@ -25,11 +22,11 @@ int ponderado(grafo g){
 }
 
 unsigned int n_vertices(grafo g){
-  return tamanho_lista(g->vertices);
+  return (unsigned int)agnnodes(g->grafo);
 }
 
 unsigned int n_arestas(grafo g){
-  return tamanho_lista(g->arestas);
+  return (unsigned int)agnedges(g->grafo);
 }
 
 struct vertice {
@@ -41,18 +38,17 @@ char *nome_vertice(vertice v){
 }
 
 grafo le_grafo(FILE *input){
-  grafo g;
-  g->grafo = agread(input, NULL);
+	grafo g = malloc(sizeof(struct grafo));
+	Agraph_t *h = agread(input, NULL);
+	g->grafo = h;
 
-  return g;
+	return g;
 }
 
 int destroi_grafo(void *g) {
 	grafo *f = (void *)g;
   int ok = 1;
   ok &= agclose((*f)->grafo);
-  ok &= destroi_lista((*f)->vertices, (int (*)(void *))agclose);
-  ok &= destroi_lista((*f)->arestas, (int (*)(void *))agclose);
   if (ok == 1){
     free(g);
   }
@@ -123,6 +119,7 @@ int clique(lista l, grafo g){
     no1 = proximo_no(no1);
     no2 = proximo_no(no1);
   }
+  return is;
 }
 
 int simplicial(vertice v, grafo g){
@@ -131,5 +128,10 @@ int simplicial(vertice v, grafo g){
 }
 
 int cordal(grafo g){
-  return 1;
+	grafo h;
+	h = g;
+	if (h == g){
+	  return 1;
+	}
+	return 1;
 }
