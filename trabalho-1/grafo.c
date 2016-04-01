@@ -158,19 +158,20 @@ int destroi_grafo(void *g) {
 
 grafo escreve_grafo(FILE *output, grafo g){
   unsigned int i;
+  int ok = 1;
   no n;
-  printf("strict %sgraph \"%s\" {\n\n",
+  ok &= fprintf(output, "strict %sgraph \"%s\" {\n\n",
          g->direcionado ? "di" : "",
          g->nome
        );
   if (n_vertices(g)) {
     n = primeiro_no(g->vertices);
     vertice v = (vertice)conteudo(n);
-    printf("    \"%s\"\n", v->nome);
+    ok &= fprintf(output, "    \"%s\"\n", v->nome);
     for (i = 0; i < (n_vertices(g) - 1); ++i){
       n = proximo_no(n);
       v = (vertice)conteudo(n);
-      printf("    \"%s\"\n", v->nome);
+      ok &= fprintf(output, "    \"%s\"\n", v->nome);
     }
   }
 
@@ -178,37 +179,41 @@ grafo escreve_grafo(FILE *output, grafo g){
     char rep_aresta = g->direcionado ? '>' : '-';
     n = primeiro_no(g->arestas);
     aresta a = (aresta)conteudo(n);
-    printf("    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
+    ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
 
     if (ponderado(g)){
       if (a->peso){
-        printf(" [peso=%s]", a->peso);
+        ok &= fprintf(output, " [peso=%s]", a->peso);
       } else {
-        printf(" [peso=0]");
+        ok &= fprintf(output, " [peso=0]");
       }
     }
 
-    printf("\n");
+    ok &= fprintf(output, "\n");
 
     for (i = 0; i < (n_arestas(g) - 1); ++i){
       n = proximo_no(n);
       a = (aresta)conteudo(n);
-      printf("    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
+      ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
 
       if (ponderado(g)){
         if (a->peso){
-          printf(" [peso=%s]", a->peso);
+          ok &= fprintf(output, " [peso=%s]", a->peso);
         } else {
-          printf(" [peso=0]");
+          ok &= fprintf(output, " [peso=0]");
         }
       }
 
-      printf("\n");
+      ok &= fprintf(output, "\n");
     }
   }
-  printf("}\n");
+  ok &= fprintf(output, "}\n");
 
-  return g;
+  if (ok){
+    return g;
+  }else{
+    return NULL;
+  }
 }
 
 grafo copia_grafo(grafo g){
