@@ -1,11 +1,13 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "grafo.h"
 
 //------------------------------------------------------------------------------
 
 int main(void) {
 
-  grafo g = le_grafo(stdin);
+  grafo h = le_grafo(stdin);
+  grafo g = copia_grafo(h);
 
   if ( !g )
 
@@ -19,6 +21,6 @@ int main(void) {
 
   escreve_grafo(stdout, g);
 
-  // return ! destroi_grafo(g);
-  return 1;
+  return ! destroi_grafo(g);
+  // return 1;
 }
