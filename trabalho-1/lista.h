@@ -30,13 +30,13 @@ no proximo_no(no n);
 
 //------------------------------------------------------------------------------
 // devolve o conteúdo do nó n
-//      ou NULL se n = NULL 
+//      ou NULL se n = NULL
 
 void *conteudo(no n);
 //------------------------------------------------------------------------------
 // insere um novo nó na lista l cujo conteúdo é p
 //
-// devolve o no recém-criado 
+// devolve o no recém-criado
 //      ou NULL em caso de falha
 
 no insere_lista(void *conteudo, lista l);
@@ -48,12 +48,12 @@ no insere_lista(void *conteudo, lista l);
 lista constroi_lista(void);
 //------------------------------------------------------------------------------
 // desaloca a lista l e todos os seus nós
-// 
+//
 // se destroi != NULL invoca
 //
-//     destroi(conteudo(n)) 
+//     destroi(conteudo(n))
 //
-// para cada nó n da lista. 
+// para cada nó n da lista.
 //
 // devolve 1 em caso de sucesso,
 //      ou 0 em caso de falha

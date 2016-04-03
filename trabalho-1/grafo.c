@@ -144,6 +144,7 @@ void povoa_vizinhancas(grafo g, Agraph_t *G){
         if (!busca_vizinhanca(v->vizinhanca_out, w))
           insere_lista(w,v->vizinhanca_out);
       }
+      v->vizinhanca = NULL;
     } else {
       v->vizinhanca = constroi_lista();
       for (e = agfstedge(G,n); e; e = agnxtedge(G,e,n)){
@@ -151,6 +152,7 @@ void povoa_vizinhancas(grafo g, Agraph_t *G){
         if (!busca_vizinhanca(v->vizinhanca, w))
          insere_lista(w,v->vizinhanca);
       }
+      v->vizinhanca_in = v->vizinhanca_out = NULL;
     }
   }
   return;
@@ -184,7 +186,7 @@ grafo le_grafo(FILE *input){
 
   g->vertices = povoa_vertices(g,G);
   g->arestas = povoa_arestas(G);
-  povoa_vizinhancas(g,G);;
+  povoa_vizinhancas(g,G);
 
   //ponderado
   aresta a = conteudo(primeiro_no(g->arestas));
@@ -207,17 +209,17 @@ int destroi_aresta(void *a){
 
 int destroi_vertice(void *v){
   int ok = 1;
-  // lista vz;
-  // vertice w = (vertice)v;
-  // if (sizeof(w->vizinhanca) == sizeof(struct lista)){}
-  // lista vz = w->vizinhanca[0];
-  // if (vz != NULL)
-  //   ok &= destroi_lista(vz, NULL);
-  // vz = w->vizinhanca[1];
-  // if (vz != NULL)
-  //   printf("%d", tamanho_lista(vz));
-  //   // ok &= destroi_lista(vz, NULL);
-  // ok &= destroi_lista(w->arestas, destroi_aresta);
+  vertice w = (vertice)v;
+  if (w->vizinhanca != NULL){
+    ok &= destroi_lista(w->vizinhanca, NULL);
+  }
+  if (w->vizinhanca_in != NULL){
+    ok &= destroi_lista(w->vizinhanca_in, NULL);
+  }
+  if (w->vizinhanca_out != NULL){
+    ok &= destroi_lista(w->vizinhanca_out, NULL);
+  }
+  ok &= destroi_lista(w->arestas, destroi_aresta);
   free(v);
   return ok;
 }
@@ -366,6 +368,7 @@ grafo copia_grafo(grafo g){
 
   h->vertices = povoa_vertices(h,G);
   h->arestas = povoa_arestas(G);
+  povoa_vizinhancas(h,G);
 
   //ponderado
   aresta a = conteudo(primeiro_no(h->arestas));
@@ -438,14 +441,8 @@ int simplicial(vertice v, grafo g){
   return clique(v->vizinhanca,g);
 }
 
-// lista permuta(lista p, lista l, no proximo){
-//   void *aux;
-//
-// }
-
 int cordal(grafo g){
   if (g->direcionado)
     return 0;
-  return 3;
-
+  return permuta(g->vertices, primeiro_no(g->vertices), g);
 }
