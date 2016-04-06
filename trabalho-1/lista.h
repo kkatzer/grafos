@@ -60,4 +60,11 @@ lista constroi_lista(void);
 
 int destroi_lista(lista l, int destroi(void *));
 
+//------------------------------------------------------------------------------
+// remove o no de endereço rno de l
+// se destroi != NULL, executa destroi(conteudo(rno))
+// devolve 1, em caso de sucesso
+//         0, se rno não for um no de l
+
+int remove_no(struct lista *l, struct no *rno, int destroi(void *));
 #endif

@@ -15,6 +15,7 @@ struct no {
 struct lista {
 
   unsigned int tamanho;
+  int padding; // só pra evitar warning
   no primeiro;
 };
 //---------------------------------------------------------------------------
@@ -106,4 +107,35 @@ no insere_lista(void *conteudo, lista l) {
   ++l->tamanho;
 
   return l->primeiro = novo;
+}
+
+//------------------------------------------------------------------------------
+// remove o no de endereço rno de l
+// se destroi != NULL, executa destroi(conteudo(rno))
+// devolve 1, em caso de sucesso
+//         0, se rno não for um no de l
+
+int remove_no(struct lista *l, struct no *rno, int destroi(void *)) {
+	int r = 1;
+	if (l->primeiro == rno) {
+		l->primeiro = rno->proximo;
+		if (destroi != NULL) {
+			r = destroi(conteudo(rno));
+		}
+		free(rno);
+		l->tamanho--;
+		return r;
+	}
+	for (no n = primeiro_no(l); n->proximo; n = proximo_no(n)) {
+		if (n->proximo == rno) {
+			n->proximo = rno->proximo;
+			if (destroi != NULL) {
+				r = destroi(conteudo(rno));
+			}
+			free(rno);
+			l->tamanho--;
+			return r;
+		}
+	}
+	return 0;
 }

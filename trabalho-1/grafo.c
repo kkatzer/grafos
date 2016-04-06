@@ -229,7 +229,7 @@ int destroi_grafo(void *g) {
   grafo h = (grafo)g;
   ok &= destroi_lista(h->vertices, destroi_vertice);
   ok &= destroi_lista(h->arestas, destroi_aresta);
-  // free(g);
+  free(g);
   return ok;
 }
 
@@ -441,8 +441,35 @@ int simplicial(vertice v, grafo g){
   return clique(v->vizinhanca,g);
 }
 
-int cordal(grafo g){
+//l contém k?
+int compara_listas(lista k, lista l){
+  no n = primeiro_no(k);
+  int ok = 1;
+  for (unsigned int i = 0; i < tamanho_lista(k); ++i){
+    ok &= busca_vizinhanca(l->vertices,conteudo(n));
+    n = proximo_no(n);
+  }
+  return ok;
+}
+
+int cordal(grafo g){;
   if (g->direcionado)
     return 0;
-  return permuta(g->vertices, primeiro_no(g->vertices), g);
+  grafo h = copia_grafo(g);
+  no n = primeiro_no(h->vertices);
+  vertice v;
+  for (unsigned int i = 0; i < tamanho_lista(h->vertices); ++i){
+    v = conteudo(n);
+    if (compara_listas(v->vizinhanca,h->vertices){
+      if (simplicial(v,h)){
+        if (remove_no(h->vertices,v,NULL){
+          int ok = cordal(h);
+          destroi_grafo(h);
+          return ok;
+        }
+      }
+    }
+    n = proximo_no(h->vertices);
+  }
+  return 0;
 }

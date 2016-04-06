@@ -1,13 +1,11 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include "grafo.h"
 
 //------------------------------------------------------------------------------
 
 int main(void) {
 
-  grafo h = le_grafo(stdin);
-  grafo g = copia_grafo(h);
+  grafo g = le_grafo(stdin);
 
   if ( !g )
 
@@ -18,9 +16,9 @@ int main(void) {
   printf("%sponderado\n", ponderado(g) ? "" : "não ");
   printf("%d vértices\n", n_vertices(g));
   printf("%d arestas\n", n_arestas(g));
+  printf("%s é cordal\n", cordal(g) ? "" : "não ");
 
   escreve_grafo(stdout, g);
 
   return ! destroi_grafo(g);
-  // return 1;
 }
