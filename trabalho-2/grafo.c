@@ -463,7 +463,7 @@ lista busca_largura_lexicografica(grafo g){
   // Copia a lista de vérticas g->vertices para a lista V
   lista V = constroi_lista();
   no l_aux, m_aux, n_aux = primeiro_no(g->vertices);
-  while (proximo_no(n_aux) != NULL) {
+  while (n_aux != NULL) {
     insere_lista(conteudo(n_aux), V);
     n_aux = proximo_no(n_aux);
   }
@@ -486,13 +486,13 @@ lista busca_largura_lexicografica(grafo g){
     insere_lista(x,pi);
     x_viz = vizinhanca(x,0,g);
     n_aux = primeiro_no(L);
-    while (proximo_no(n_aux) != NULL) {
+    while (n_aux != NULL) {
       Y = constroi_lista();
       S = conteudo(n_aux);
       m_aux = primeiro_no(S);
-      while (proximo_no(m_aux) != NULL) {
+      while (m_aux != NULL) {
         l_aux = primeiro_no(x_viz);
-        while (proximo_no(l_aux) != NULL) {
+        while (l_aux != NULL) {
           if (conteudo(l_aux) == conteudo(m_aux)) {
             insere_lista(conteudo(l_aux), Y);
             remove_no(S, l_aux, NULL);
@@ -518,7 +518,25 @@ lista busca_largura_lexicografica(grafo g){
 // o tempo de execução é O(|V(G)|+|E(G)|)
 
 int ordem_perfeita_eliminacao(lista l, grafo g){
-
+  no n_aux;
+  vertice v_aux;
+  int has_v = 0;
+  while (primeiro_no(l) !== NULL) {
+    n_aux = primeiro_no(l);
+    vertice v_aux = (vertice *)conteudo(n_aux);
+    n_aux = proximo_no(n_aux);
+    while (n_aux !== NULL) {
+      if (v_aux == conteudo(n_aux)) has_v = 1;
+      n_aux = proximo_no(n_aux);
+    }
+    if (has_v == 0) {
+      destroi_lista(l, NULL);
+      return 0;
+    }
+    remove_no(l, primeiro_no(l), NULL);
+  }
+  destroi_lista(l, NULL);
+  return 1;
 }
 
 //------------------------------------------------------------------------------
@@ -526,5 +544,6 @@ int ordem_perfeita_eliminacao(lista l, grafo g){
 //         0, caso contrário
 
 int cordal(grafo g){
-
+  lista l = busca_largura_lexicografica(g);
+  return ordem_perfeita_eliminacao(l,g);
 }
