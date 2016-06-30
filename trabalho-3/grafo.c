@@ -3,7 +3,163 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <malloc.h>
 #include "grafo.h"
+
+#define true 1
+#define false 0
+
+lista povoa_vertices(grafo g, Agraph_t *G);
+vertice busca_vertice(grafo g, char *nome);
+lista povoa_arestas(grafo g, Agraph_t *G);
+int destroi_aresta(void *a);
+int destroi_vertice(void *v);
+void povoa_vizinhancas(grafo g, Agraph_t *G);
+int busca_vizinhanca(lista vz, vertice v);
+no insere_antes(void *conteudo, lista l, no n);
+lista caminho_aumentante(grafo g);
+void desvisita_vertices(grafo g);
+int busca_caminho(vertice v, lista l, int last);
+void xor(lista l);
+
+//---------------------------------------------------------------------------
+// nó de lista encadeada cujo conteúdo é um void *
+
+struct no {
+
+  void *conteudo;
+  no proximo;
+};
+//---------------------------------------------------------------------------
+// lista encadeada
+
+struct lista {
+
+  unsigned int tamanho;
+  int padding; // só pra evitar warning
+  no primeiro;
+};
+//---------------------------------------------------------------------------
+// devolve o número de nós da lista l
+
+unsigned int tamanho_lista(lista l) { return l->tamanho; }
+
+//---------------------------------------------------------------------------
+// devolve o primeiro nó da lista l,
+//      ou NULL, se l é vazia
+
+no primeiro_no(lista l) { return l->primeiro; }
+
+//---------------------------------------------------------------------------
+// devolve o conteúdo do nó n
+//      ou NULL se n = NULL
+
+void *conteudo(no n) { return n->conteudo; }
+
+//---------------------------------------------------------------------------
+// devolve o sucessor do nó n,
+//      ou NULL, se n for o último nó da lista
+
+no proximo_no(no n) { return n->proximo; }
+
+//---------------------------------------------------------------------------
+// cria uma lista vazia e a devolve
+//
+// devolve NULL em caso de falha
+
+lista constroi_lista(void) {
+
+  lista l = malloc(sizeof(struct lista));
+
+  if ( ! l )
+    return NULL;
+
+  l->primeiro = NULL;
+  l->tamanho = 0;
+
+  return l;
+}
+//---------------------------------------------------------------------------
+// desaloca a lista l e todos os seus nós
+//
+// se destroi != NULL invoca
+//
+//     destroi(conteudo(n))
+//
+// para cada nó n da lista.
+//
+// devolve 1 em caso de sucesso,
+//      ou 0 em caso de falha
+
+int destroi_lista(lista l, int destroi(void *)) {
+
+  no p;
+  int ok=1;
+
+  while ( (p = primeiro_no(l)) ) {
+
+    l->primeiro = proximo_no(p);
+
+    if ( destroi )
+      ok &= destroi(conteudo(p));
+
+    free(p);
+  }
+
+  free(l);
+
+  return ok;
+}
+//---------------------------------------------------------------------------
+// insere um novo nó na lista l cujo conteúdo é p
+//
+// devolve o no recém-criado
+//      ou NULL em caso de falha
+
+no insere_lista(void *conteudo, lista l) {
+
+  no novo = malloc(sizeof(struct no));
+
+  if ( ! novo )
+    return NULL;
+
+  novo->conteudo = conteudo;
+  novo->proximo = primeiro_no(l);
+  ++l->tamanho;
+
+  return l->primeiro = novo;
+}
+
+//------------------------------------------------------------------------------
+// remove o no de endereço rno de l
+// se destroi != NULL, executa destroi(conteudo(rno))
+// devolve 1, em caso de sucesso
+//         0, se rno não for um no de l
+
+int remove_no(struct lista *l, struct no *rno, int destroi(void *)) {
+	int r = 1;
+	if (l->primeiro == rno) {
+		l->primeiro = rno->proximo;
+		if (destroi != NULL) {
+			r = destroi(conteudo(rno));
+		}
+		free(rno);
+		l->tamanho--;
+		return r;
+	}
+	for (no n = primeiro_no(l); n->proximo; n = proximo_no(n)) {
+		if (n->proximo == rno) {
+			n->proximo = rno->proximo;
+			if (destroi != NULL) {
+				r = destroi(conteudo(rno));
+			}
+			free(rno);
+			l->tamanho--;
+			return r;
+		}
+	}
+	return 0;
+}
 
 struct grafo {
   char *nome;
@@ -13,16 +169,6 @@ struct grafo {
   lista vertices;
   lista arestas;
 };
-
-lista povoa_v_arestas(Agnode_t *v, Agraph_t *G);
-lista povoa_vertices(grafo g, Agraph_t *G);
-vertice busca_vertice(grafo g, char *nome);
-lista povoa_arestas(Agraph_t *G);
-int destroi_aresta(void *a);
-int destroi_vertice(void *v);
-void povoa_vizinhancas(grafo g, Agraph_t *G);
-int busca_vizinhanca(lista vz, vertice v);
-no insere_antes(void *conteudo, lista l, no n);
 
 char *nome_grafo(grafo g){
   return g->nome;
@@ -47,6 +193,8 @@ unsigned int n_arestas(grafo g){
 struct vertice {
   char *nome;
   unsigned int grau[2];
+  int visitado;
+  int coberto;
 
   lista vizinhanca;
   lista vizinhanca_in;
@@ -59,29 +207,13 @@ char *nome_vertice(vertice v){
 }
 
 typedef struct aresta {
-  char *head;
-  char *tail;
+  vertice head;
+  vertice tail;
+  int coberta;
 
   char *nome;
   char *peso;
 } *aresta;
-
-lista povoa_v_arestas(Agnode_t *v, Agraph_t *G){
-  aresta a = NULL;
-  char peso[] = "peso";
-  lista arestas = constroi_lista();
-  for (Agedge_t *e = agfstin(G,v); e; e = agnxtin(G,e)) {
-    a = malloc(sizeof(struct aresta));
-    a->head = agnameof(aghead(e));
-    a->tail = agnameof(agtail(e));
-    a->nome = agnameof(e);
-    a->peso = agget(e,peso);
-    if (insere_lista(a,arestas) == NULL){
-      return NULL;
-    }
-  }
-  return arestas;
-}
 
 vertice busca_vertice(grafo g, char *nome){
   no n = primeiro_no(g->vertices);
@@ -108,7 +240,8 @@ lista povoa_vertices(grafo g, Agraph_t *G){
     } else {
       v->grau[0] = (unsigned int)agdegree(G,n,TRUE,TRUE);
     }
-    v->arestas = povoa_v_arestas(n,G);
+    v->visitado = 0;
+    v->coberto = 0;
     insere_lista(v,vertices);
   }
   return vertices;
@@ -159,20 +292,26 @@ void povoa_vizinhancas(grafo g, Agraph_t *G){
   return;
 }
 
-lista povoa_arestas(Agraph_t *G){
+lista povoa_arestas(grafo g, Agraph_t *G){
   aresta a = NULL;
+  vertice v = NULL;
   char peso[] = "peso";
   lista arestas = constroi_lista();
   for (Agnode_t *n = agfstnode(G); n; n = agnxtnode(G,n)) {
     for (Agedge_t *e = agfstout(G,n); e; e = agnxtout(G,e)) {
       a = malloc(sizeof(struct aresta));
-      a->head = agnameof(aghead(e));
-      a->tail = agnameof(agtail(e));
+      a->head = busca_vertice(g, agnameof(aghead(e)));
+      a->tail = busca_vertice(g, agnameof(agtail(e)));
       a->nome = agnameof(e);
       a->peso = agget(e,peso);
+      a->coberta = 0;
       if (insere_lista(a,arestas) == NULL){
         return NULL;
       }
+      v = a->head;
+      insere_lista(a,v->arestas);
+      v = a->tail;
+      insere_lista(a,v->arestas);
     }
   }
   return arestas;
@@ -186,7 +325,7 @@ grafo le_grafo(FILE *input){
   g->direcionado = agisdirected(G);
 
   g->vertices = povoa_vertices(g,G);
-  g->arestas = povoa_arestas(G);
+  g->arestas = povoa_arestas(g,G);
   povoa_vizinhancas(g,G);
 
   //ponderado
@@ -259,7 +398,7 @@ grafo escreve_grafo(FILE *output, grafo g){
     char rep_aresta = g->direcionado ? '>' : '-';
     n = primeiro_no(g->arestas);
     aresta a = (aresta)conteudo(n);
-    ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
+    ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
 
     if (ponderado(g)){
       if (a->peso){
@@ -274,7 +413,7 @@ grafo escreve_grafo(FILE *output, grafo g){
     for (i = 0; i < (n_arestas(g) - 1); ++i){
       n = proximo_no(n);
       a = (aresta)conteudo(n);
-      ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
+      ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
 
       if (ponderado(g)){
         if (a->peso){
@@ -325,7 +464,7 @@ grafo copia_grafo(grafo g){
     char rep_aresta = g->direcionado ? '>' : '-';
     n = primeiro_no(g->arestas);
     aresta a = (aresta)conteudo(n);
-    snprintf(aux, 100, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
+    snprintf(aux, 100, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
     graph = strcat(graph, aux);
 
     if (ponderado(g)){
@@ -343,7 +482,7 @@ grafo copia_grafo(grafo g){
     for (i = 0; i < (n_arestas(g) - 1); ++i){
       n = proximo_no(n);
       a = (aresta)conteudo(n);
-      snprintf(aux, 100, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head);
+      snprintf(aux, 100, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
       graph = strcat(graph, aux);
 
       if (ponderado(g)){
@@ -368,7 +507,7 @@ grafo copia_grafo(grafo g){
   h->direcionado = agisdirected(G);
 
   h->vertices = povoa_vertices(h,G);
-  h->arestas = povoa_arestas(G);
+  h->arestas = povoa_arestas(g,G);
   povoa_vizinhancas(h,G);
 
   //ponderado
@@ -549,4 +688,89 @@ int ordem_perfeita_eliminacao(lista l, grafo g){
 int cordal(grafo g){
   lista l = busca_largura_lexicografica(g);
   return ordem_perfeita_eliminacao(l,g);
+}
+
+//------------------------------------------------------------------------------
+// devolve um grafo cujos vertices são cópias de vértices do grafo
+// bipartido g e cujas arestas formam um emparelhamento máximo em g
+//
+// o grafo devolvido, portanto, é vazio ou tem todos os vértices com grau 1
+//
+// não verifica se g é bipartido; caso não seja, o comportamento é indefinido
+
+grafo emparelhamento_maximo(grafo g) {
+   while (l = caminho_aumentante(g)) {
+     xor(l);
+     desvisita_vertices(g);
+   }
+   grafo e = copia_grafo(g);
+   remove_expostas(e);
+   return e;
+}
+
+lista caminho_aumentante(grafo g) {
+  lista l;
+  no n;
+  vertice v;
+  for (n = primeiro_no(g->vertices); n != NULL; n = proximo_no(n)) {
+    v = conteudo(n);
+    if (v->coberto == false){
+      v->visitado = true;
+      l = constroi_lista();
+      if (busca_caminho(v,l,1)) {
+        desvisita_vertices(g);
+        return l;
+      }
+      desvisita_vertices(g);
+      destroi_lista(l);
+    }
+  }
+  return NULL;
+}
+
+void desvisita_vertices(grafo g) {
+  no n;
+  vertice v;
+  for (n = primeiro_no(g_>vertices); n != NULL; n = proximo_no(n)) {
+    v = conteudo(n);
+    v->visitado = false;
+  }
+  return;
+}
+
+int busca_caminho(vertice v, lista l, int last) {
+  no n;
+  aresta a;
+  if (!v->coberto && !v->visitado)
+  return true;
+  v->visitado = true;
+  for (n = primeiro_no(v->arestas); n != NULL; n = proximo_no(n)) {
+    if (a->coberta != last) {
+      if (!vizinho->visitado && busca_caminho(vizinho, l, !last)) {
+        insere_lista(a, l);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void xor(lista l) {
+  no n;
+  aresta a;
+  vertice v;
+  for (n = primeiro_no(l); n != NULL; n = proximo_no(n)) {
+    a = conteudo(n);
+    a->coberta = !a->coberta;
+    v = a->head;
+    if (!v->visitado) {
+      v->coberto = !v->coberto;
+      v->visitado = true;
+    }
+    v = a->tail;
+    if (!v->visitado) {
+      v->coberto = !v->coberto;
+      v->visitado = true;
+    }
+  }
 }
