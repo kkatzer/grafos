@@ -22,6 +22,7 @@ int destroi_aresta(void *a);
 int destroi_vertice(void *v);
 void povoa_vizinhancas(grafo g, Agraph_t *G);
 int busca_vizinhanca(lista vz, vertice v);
+no insere_antes(void *conteudo, lista l, no n);
 
 char *nome_grafo(grafo g){
   return g->nome;
@@ -459,54 +460,53 @@ int simplicial(vertice v, grafo g){
 // busca em largura lexicográfica
 
 lista busca_largura_lexicografica(grafo g){
-  vertice x;
-  // Copia a lista de vérticas g->vertices para a lista V
-  lista V = constroi_lista();
-  no l_aux, m_aux, n_aux = primeiro_no(g->vertices);
-  while (n_aux != NULL) {
-    insere_lista(conteudo(n_aux), V);
-    n_aux = proximo_no(n_aux);
+  vertice x,z;
+  lista viz, Y, pi, L, S = constroi_lista();
+  no m, n = primeiro_no(g->vertices);
+  while (n != NULL) {
+    x = conteudo(n);
+    insere_lista(x,S);
+    n = proximo_no(n);
   }
-  lista L = constroi_lista();
-  insere_lista(V, L);
+  L = constroi_lista();
+  insere_lista(S,L);
+  pi = constroi_lista();
 
-  lista Y, x_viz, S, pi = constroi_lista();
-  unsigned int i = n_vertices(g) - 1;
-
-  while (tamanho_lista(L)) {
-    n_aux = primeiro_no(L);
-    S = (lista *)conteudo(n_aux);
-    n_aux = primeiro_no(S);
-    x = (vertice *)conteudo(n_aux);
-    remove_no(S,n_aux,NULL);
+  while (tamanho_lista(L) != 0) {
+    n = primeiro_no(L);
+    S = conteudo(n);
+    m = primeiro_no(S);
+    x = conteudo(m);
+    remove_no(S,m,NULL);
     if (tamanho_lista(S) == 0) {
-      n_aux = primeiro_no(L);
-      remove_no(S,n,NULL);
+      remove_no(L,n,NULL);
+      destroi_lista(S,NULL);
     }
     insere_lista(x,pi);
-    x_viz = vizinhanca(x,0,g);
-    n_aux = primeiro_no(L);
-    while (n_aux != NULL) {
+
+    n = primeiro_no(L);
+    while (n != NULL) {
       Y = constroi_lista();
-      S = (lista *)conteudo(n_aux);
-      m_aux = primeiro_no(S);
-      while (m_aux != NULL) {
-        l_aux = primeiro_no(x_viz);
-        while (l_aux != NULL) {
-          if (conteudo(l_aux) == conteudo(m_aux)) {
-            insere_lista(conteudo(l_aux), Y);
-            remove_no(S, l_aux, NULL);
-          }
-          l_aux = proximo_no(l_aux);
+      S = conteudo(n);
+      m = primeiro_no(S);
+      while (m != NULL) {
+        z = conteudo(m);
+        viz = vizinhanca(x,0,g);
+        if (busca_vizinhanca(viz,z)) {
+          insere_lista(z,Y);
+          remove_no(S,m,NULL);
         }
-        m_aux = proximo_no(m_aux);
+        m = proximo_no(m);
       }
-      n_aux = proximo_no(n_aux);
-      destroi_lista(Y, NULL);
+      if (tamanho_lista(Y) != 0) insere_lista(Y,L);
+      else destroi_lista(Y,NULL);
+      if (tamanho_lista(S) == 0) {
+        remove_no(L,n,NULL);
+        destroi_lista(S,NULL);
+      }
+      n = proximo_no(n);
     }
   }
-  destroi_lista(V, NULL);
-  destroi_lista(L, NULL);
   return pi;
 }
 
@@ -518,24 +518,27 @@ lista busca_largura_lexicografica(grafo g){
 // o tempo de execução é O(|V(G)|+|E(G)|)
 
 int ordem_perfeita_eliminacao(lista l, grafo g){
-  no n_aux;
-  vertice v_aux;
-  int has_v = 0;
-  while (primeiro_no(l) !== NULL) {
-    n_aux = primeiro_no(l);
-    vertice v_aux = (vertice *)conteudo(n_aux);
-    n_aux = proximo_no(n_aux);
-    while (n_aux !== NULL) {
-      if (v_aux == conteudo(n_aux)) has_v = 1;
-      n_aux = proximo_no(n_aux);
+  no m, n;
+  vertice v, w;
+  lista viz;
+  n = primeiro_no(l);
+  while (n != NULL) {
+    v = conteudo(n);
+    m = proximo_no(n);
+    while (m != NULL) {
+      w = conteudo(m);
+      viz = vizinhanca(v,0,g);
+      if (!busca_vizinhanca(viz,w)) {
+        destroi_lista(l,NULL);
+        return 0;
+      }
+      m = proximo_no(m);
     }
-    if (has_v == 0) {
-      destroi_lista(l, NULL);
-      return 0;
-    }
-    remove_no(l, primeiro_no(l), NULL);
+
+    remove_no(l,n,NULL);
+    n = primeiro_no(l);
   }
-  destroi_lista(l, NULL);
+  destroi_lista(l,NULL);
   return 1;
 }
 
