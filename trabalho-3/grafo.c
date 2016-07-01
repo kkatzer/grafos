@@ -9,6 +9,8 @@
 #define true 1
 #define false 0
 
+typedef struct aresta *aresta;
+
 lista povoa_vertices(grafo g, Agraph_t *G);
 vertice busca_vertice(grafo g, char *nome);
 lista povoa_arestas(grafo g, Agraph_t *G);
@@ -21,6 +23,7 @@ lista caminho_aumentante(grafo g);
 void desvisita_vertices(grafo g);
 int busca_caminho(vertice v, lista l, int last);
 void xor(lista l);
+grafo copia_grafo_emparelhado(grafo g);
 
 //---------------------------------------------------------------------------
 // nó de lista encadeada cujo conteúdo é um void *
@@ -206,14 +209,15 @@ char *nome_vertice(vertice v){
   return v->nome;
 }
 
-typedef struct aresta {
-  vertice head;
-  vertice tail;
-  int coberta;
-
+struct aresta {
   char *nome;
   char *peso;
-} *aresta;
+  int coberta;
+  int padding; // só pra evitar warning
+
+  vertice head;
+  vertice tail;
+};
 
 vertice busca_vertice(grafo g, char *nome){
   no n = primeiro_no(g->vertices);
@@ -309,8 +313,12 @@ lista povoa_arestas(grafo g, Agraph_t *G){
         return NULL;
       }
       v = a->head;
+      if (v->arestas == NULL)
+        v->arestas = constroi_lista();
       insere_lista(a,v->arestas);
       v = a->tail;
+      if (v->arestas == NULL)
+        v->arestas = constroi_lista();
       insere_lista(a,v->arestas);
     }
   }
@@ -338,7 +346,7 @@ grafo le_grafo(FILE *input){
 
   //nome
   g->nome = agnameof(G);
-  // agclose(G);
+  agclose(G);
 	return g;
 }
 
@@ -398,7 +406,7 @@ grafo escreve_grafo(FILE *output, grafo g){
     char rep_aresta = g->direcionado ? '>' : '-';
     n = primeiro_no(g->arestas);
     aresta a = (aresta)conteudo(n);
-    ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
+    ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail->nome, rep_aresta, a->head->nome);
 
     if (ponderado(g)){
       if (a->peso){
@@ -413,7 +421,7 @@ grafo escreve_grafo(FILE *output, grafo g){
     for (i = 0; i < (n_arestas(g) - 1); ++i){
       n = proximo_no(n);
       a = (aresta)conteudo(n);
-      ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
+      ok &= fprintf(output, "    \"%s\" -%c \"%s\"", a->tail->nome, rep_aresta, a->head->nome);
 
       if (ponderado(g)){
         if (a->peso){
@@ -436,99 +444,63 @@ grafo escreve_grafo(FILE *output, grafo g){
 }
 
 grafo copia_grafo(grafo g){
-  unsigned int i;
-  no n;
-  char *graph = malloc(100*sizeof(char));
-  char *aux = malloc(100*sizeof(char));
-  snprintf(aux, 100, "strict %sgraph \"%s\" {\n\n",
-         g->direcionado ? "di" : "",
-         g->nome
-       );
-  graph = strcat(graph, aux);
-  if (n_vertices(g)) {
-    n = primeiro_no(g->vertices);
-    vertice v = (vertice)conteudo(n);
-    snprintf(aux, 100, "    \"%s\"\n", v->nome);
-    graph = strcat(graph, aux);
-    for (i = 0; i < (n_vertices(g) - 1); ++i){
-      n = proximo_no(n);
-      v = (vertice)conteudo(n);
-      snprintf(aux, 100, "    \"%s\"\n", v->nome);
-      graph = strcat(graph, aux);
-    }
-  }
-
-  graph = strcat(graph, "\n");
-
-  if (n_arestas(g)){
-    char rep_aresta = g->direcionado ? '>' : '-';
-    n = primeiro_no(g->arestas);
-    aresta a = (aresta)conteudo(n);
-    snprintf(aux, 100, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
-    graph = strcat(graph, aux);
-
-    if (ponderado(g)){
-      if (a->peso){
-        snprintf(aux, 100, " [peso=%s]", a->peso);
-        graph = strcat(graph, aux);
-      } else {
-        snprintf(aux, 100, " [peso=0]");
-        graph = strcat(graph, aux);
-      }
-    }
-
-    graph = strcat(graph, "\n");
-
-    for (i = 0; i < (n_arestas(g) - 1); ++i){
-      n = proximo_no(n);
-      a = (aresta)conteudo(n);
-      snprintf(aux, 100, "    \"%s\" -%c \"%s\"", a->tail, rep_aresta, a->head->nome);
-      graph = strcat(graph, aux);
-
-      if (ponderado(g)){
-        if (a->peso){
-          snprintf(aux, 100, " [peso=%s]", a->peso);
-          graph = strcat(graph, aux);
-        } else {
-          snprintf(aux, 100, " [peso=0]");
-          graph = strcat(graph, aux);
-        }
-      }
-
-      graph = strcat(graph, "\n");
-    }
-  }
-  graph = strcat(graph, "}\n");
-
 	grafo h = malloc(sizeof(struct grafo));
-	Agraph_t *G = agmemread(graph);
 
   //direcionado
-  h->direcionado = agisdirected(G);
+  h->direcionado = g->directionado;
 
-  h->vertices = povoa_vertices(h,G);
-  h->arestas = povoa_arestas(g,G);
-  povoa_vizinhancas(h,G);
+  h->vertices = copia_vertices(g);
+  h->arestas = copia_arestas(g,h);
+  copia_vizinhancas(h);
 
   //ponderado
-  aresta a = conteudo(primeiro_no(h->arestas));
-  if (a->peso == NULL){
-    h->ponderado = 0;
-  } else {
-    h->ponderado = 1;
-  }
+  h->ponderado = g->ponderado
 
   //nome
-  h->nome = agnameof(G);
-  agclose(G);
-  vertice v = conteudo(primeiro_no(h->vertices));
-  lista l = vizinhanca(v,0,h);
-  if (l == NULL){
-    printf("alala");
-  }
-  // v = conteudo(primeiro_no(vizinhanca(v,0,h)));
-  // printf("%s", v->nome);
+  h->nome = g->nome;
   return h;
+}
+
+lista copia_vertices(grafo g) {
+  lista l = constroi_lista();
+  no n;
+  vertice v, w;
+  for (n = primeiro_no(g->vertices); n != NULL; n = proximo_no(n)) {
+    v = conteudo(n);
+    w = malloc(sizeof(struct vertice));
+    w->nome = malloc(sizeof(g->nome));
+    strcpy(w->nome,g->nome);
+    if (g->direcionado) {
+      w->grau[0] = v->grau[0];
+      w->grau[1] = v->grau[1];
+    } else {
+      w->grau[0] = v->grau[0];
+    }
+    insere_lista(w,l);
+  }
+  return l;
+}
+
+lista copia_arestas(grafo g, grafo h) {
+  lista l = constroi_lista();
+  no n;
+  aresta a, b;
+  for (n = primeiro_no(g->arestas); n != NULL; n = proximo_no(n)) {
+    a = conteudo(n);
+    b = malloc(sizeof(struct aresta));
+    b->nome = malloc(sizeof(a->nome));
+    strcpy(b->nome,a->nome);
+    b->peso = malloc(sizeof(a->peso));
+    strcpy(b->peso,a->peso);
+
+    b->head = busca_vertice(h,a->head->nome);
+    b->tail = busca_vertice(h,a->tail->nome);
+  }
+}
+
+void copia_vizinhancas(grafo g) {
+  lista l = constroi_lista();
+  //TODO
 }
 
 lista vizinhanca(vertice v, int direcao, grafo g){
@@ -699,13 +671,14 @@ int cordal(grafo g){
 // não verifica se g é bipartido; caso não seja, o comportamento é indefinido
 
 grafo emparelhamento_maximo(grafo g) {
-   while (l = caminho_aumentante(g)) {
+  lista l = caminho_aumentante(g);
+   while (l) {
      xor(l);
      desvisita_vertices(g);
+     l = caminho_aumentante(g);
    }
    grafo e = copia_grafo(g);
-   remove_expostas(e);
-   return e;
+   return g;
 }
 
 lista caminho_aumentante(grafo g) {
@@ -722,7 +695,7 @@ lista caminho_aumentante(grafo g) {
         return l;
       }
       desvisita_vertices(g);
-      destroi_lista(l);
+      destroi_lista(l,NULL);
     }
   }
   return NULL;
@@ -731,7 +704,7 @@ lista caminho_aumentante(grafo g) {
 void desvisita_vertices(grafo g) {
   no n;
   vertice v;
-  for (n = primeiro_no(g_>vertices); n != NULL; n = proximo_no(n)) {
+  for (n = primeiro_no(g->vertices); n != NULL; n = proximo_no(n)) {
     v = conteudo(n);
     v->visitado = false;
   }
@@ -741,11 +714,15 @@ void desvisita_vertices(grafo g) {
 int busca_caminho(vertice v, lista l, int last) {
   no n;
   aresta a;
+  vertice vizinho;
   if (!v->coberto && !v->visitado)
   return true;
   v->visitado = true;
   for (n = primeiro_no(v->arestas); n != NULL; n = proximo_no(n)) {
+    a = conteudo(n);
     if (a->coberta != last) {
+      if (a->tail == v) vizinho = a->head;
+      else vizinho = a->tail;
       if (!vizinho->visitado && busca_caminho(vizinho, l, !last)) {
         insere_lista(a, l);
         return true;
@@ -762,14 +739,18 @@ void xor(lista l) {
   for (n = primeiro_no(l); n != NULL; n = proximo_no(n)) {
     a = conteudo(n);
     a->coberta = !a->coberta;
-    v = a->head;
-    if (!v->visitado) {
-      v->coberto = !v->coberto;
-      v->visitado = true;
-    }
-    v = a->tail;
-    if (!v->visitado) {
-      v->coberto = !v->coberto;
+    if (a->coberta) {
+      v = a->head;
+      v->coberto = true;
+      v = a->tail;
+      v->coberto = true;
+    } else {
+      if (v->visitado) {
+        v = a->head;
+        v->coberto = false;
+        v = a->tail;
+        v->coberto = false;
+      }
       v->visitado = true;
     }
   }

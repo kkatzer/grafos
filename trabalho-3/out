@@ -1,0 +1,9 @@
+struct aresta {
+  char *nome;
+  char *peso;
+  int coberta;
+  int padding; // só pra evitar warning
+
+  vertice head;
+  vertice tail;
+};
